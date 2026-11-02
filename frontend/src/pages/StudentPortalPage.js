@@ -159,7 +159,7 @@ export default function StudentPortalPage() {
       </div>
 
       {/* ── Stat cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">📅</div>
           <div><div className="stat-value">{summary.totalSessions}</div><div className="stat-label">Total Sessions</div></div>
