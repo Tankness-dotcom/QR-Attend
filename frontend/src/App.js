@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
+import InstallPrompt from './components/InstallPrompt';
 
 import LoginPage        from './pages/LoginPage';
 import DashboardPage    from './pages/DashboardPage';
@@ -32,6 +33,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <InstallPrompt />
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
