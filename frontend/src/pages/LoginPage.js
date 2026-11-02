@@ -136,14 +136,10 @@ function LoginScreen({ onCreateAccount }) {
       <p style={{ marginTop: '1.1rem', fontSize: '.875rem', color: '#5a8070', textAlign: 'center' }}>
         Don't have an account?{' '}
         <button type="button" onClick={onCreateAccount}
-          style={{ background: 'none', border: 'none', color: '#3e6f5c', fontWeight: 700, fontSize: '.875rem', cursor: 'pointer', fontFamily: 'Inter,sans-serif', textDecoration: 'underline', padding: 0 }}>
-          Create Student Account
-        </button>
-      </p>
-
-      <div style={{ marginTop: '.9rem', padding: '.75rem 1.1rem', background: 'rgba(255,255,255,.55)', borderRadius: '14px', fontSize: '.78rem', color: '#5a8070', width: '100%', textAlign: 'center' }}>
-        <span style={{ fontWeight: 700, color: '#3e6f5c' }}>Default Admin: </span>admin@rnhs.edu.ph / admin123
-      </div>
+        style={{ background: 'none', border: 'none', color: '#3e6f5c', fontWeight: 700, fontSize: '.875rem', cursor: 'pointer', fontFamily: 'Inter,sans-serif', textDecoration: 'underline', padding: 0 }}>
+        Create Student Account
+      </button>
+    </p>
     </PageShell>
   );
 }
