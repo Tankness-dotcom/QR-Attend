@@ -178,6 +178,70 @@ router.post('/student/create', authMiddleware, (req, res) => {
   res.status(201).json({ id, username, student_id });
 });
 
+// POST /api/auth/student/self-register  — student self-registers using LRN
+// No auth required. Student must provide their LRN to verify they are enrolled.
+router.post('/student/self-register', (req, res) => {
+  const { lrn, username, password } = req.body;
+  if (!lrn || !username || !password)
+    return res.status(400).json({ error: 'LRN, username and password are required' });
+  if (password.length < 6)
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (username.length < 3)
+    return res.status(400).json({ error: 'Username must be at least 3 characters' });
+  if (!/^[a-zA-Z0-9._-]+$/.test(username))
+    return res.status(400).json({ error: 'Username may only contain letters, numbers, dots, hyphens and underscores' });
+
+  // Find student by LRN
+  const student = get('SELECT * FROM students WHERE lrn = ?', [lrn.trim()]);
+  if (!student)
+    return res.status(404).json({ error: 'No enrolled student found with that LRN. Please check your LRN or contact your teacher.' });
+
+  // Already has an account?
+  if (get('SELECT id FROM student_accounts WHERE student_id = ?', [student.id]))
+    return res.status(409).json({ error: 'An account already exists for this student. Please log in instead.' });
+
+  // Username taken?
+  if (get('SELECT id FROM student_accounts WHERE username = ?', [username]))
+    return res.status(409).json({ error: 'That username is already taken. Please choose another.' });
+
+  const hash = bcrypt.hashSync(password, 10);
+  const id   = insert('INSERT INTO student_accounts (student_id, username, password) VALUES (?, ?, ?)',
+    [student.id, username, hash]);
+
+  res.status(201).json({
+    message: `Account created successfully! You can now log in as "${username}".`,
+    student_name: student.name,
+    username,
+  });
+});
+
+// GET /api/auth/student/lookup-lrn?lrn=X — preview student info before registering
+router.get('/student/lookup-lrn', (req, res) => {
+  const { lrn } = req.query;
+  if (!lrn) return res.status(400).json({ error: 'LRN is required' });
+
+  const student = get(`
+    SELECT s.name, s.student_id, s.grade_level, s.section, s.student_code,
+           c.name as class_name,
+           (SELECT COUNT(*) FROM student_accounts sa WHERE sa.student_id = s.id) as has_account
+    FROM students s
+    JOIN classes c ON s.class_id = c.id
+    WHERE s.lrn = ?
+  `, [lrn.trim()]);
+
+  if (!student) return res.status(404).json({ error: 'No student found with that LRN.' });
+
+  res.json({
+    name:         student.name,
+    student_id:   student.student_id,
+    grade_level:  student.grade_level,
+    section:      student.section,
+    student_code: student.student_code,
+    class_name:   student.class_name,
+    has_account:  !!student.has_account,
+  });
+});
+
 // GET /api/auth/student/me
 router.get('/student/me', studentAuthMiddleware, (req, res) => {
   const student = get('SELECT photo FROM students WHERE id = ?', [req.student.studentRowId]);

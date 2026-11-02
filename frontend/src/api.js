@@ -41,10 +41,11 @@ export const changeTeacherPassword = (current_password, new_password) =>
   request('PUT', '/auth/teacher/password', { current_password, new_password });
 
 /* ── Student profile ── */
-export const uploadStudentPhoto   = (photo)         => request('PUT',    '/auth/student/photo',    { photo });
-export const removeStudentPhoto   = ()              => request('DELETE', '/auth/student/photo');
-export const changeStudentPassword = (current_password, new_password) =>
-  request('PUT', '/auth/student/password', { current_password, new_password });
+export const uploadStudentPhoto    = (photo)                        => request('PUT',    '/auth/student/photo',         { photo });
+export const removeStudentPhoto    = ()                             => request('DELETE', '/auth/student/photo');
+export const changeStudentPassword = (current_password, new_password) => request('PUT', '/auth/student/password', { current_password, new_password });
+export const lookupStudentByLRN    = (lrn)                          => request('GET',    `/auth/student/lookup-lrn?lrn=${encodeURIComponent(lrn)}`);
+export const studentSelfRegister   = (lrn, username, password)      => request('POST',   '/auth/student/self-register', { lrn, username, password });
 
 /* ── Teacher management (admin) ── */
 export const getTeachers     = ()     => request('GET',    '/auth/teachers');
