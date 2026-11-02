@@ -44,8 +44,8 @@ export const changeTeacherPassword = (current_password, new_password) =>
 export const uploadStudentPhoto    = (photo)                        => request('PUT',    '/auth/student/photo',         { photo });
 export const removeStudentPhoto    = ()                             => request('DELETE', '/auth/student/photo');
 export const changeStudentPassword = (current_password, new_password) => request('PUT', '/auth/student/password', { current_password, new_password });
-export const lookupStudentByLRN    = (lrn)                          => request('GET',    `/auth/student/lookup-lrn?lrn=${encodeURIComponent(lrn)}`);
-export const studentSelfRegister   = (lrn, username, password)      => request('POST',   '/auth/student/self-register', { lrn, username, password });
+export const lookupStudentById     = (student_id)                    => request('GET',    `/auth/student/lookup-id?student_id=${encodeURIComponent(student_id)}`);
+export const studentSelfRegister   = (student_id, username, password) => request('POST',   '/auth/student/self-register', { student_id, username, password });
 
 /* ── Teacher management (admin) ── */
 export const getTeachers     = ()     => request('GET',    '/auth/teachers');

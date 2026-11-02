@@ -137,13 +137,13 @@ router.post('/student/create', authMiddleware, async (req, res) => {
 
 router.post('/student/self-register', async (req, res) => {
   try {
-    const { lrn, username, password } = req.body;
-    if (!lrn || !username || !password) return res.status(400).json({ error: 'LRN, username and password are required' });
+    const { student_id, username, password } = req.body;
+    if (!student_id || !username || !password) return res.status(400).json({ error: 'Student ID, username and password are required' });
     if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
     if (username.length < 3) return res.status(400).json({ error: 'Username must be at least 3 characters' });
     if (!/^[a-zA-Z0-9._-]+$/.test(username)) return res.status(400).json({ error: 'Username may only contain letters, numbers, dots, hyphens and underscores' });
-    const student = await get('SELECT * FROM students WHERE lrn = ?', [lrn.trim()]);
-    if (!student) return res.status(404).json({ error: 'No enrolled student found with that LRN. Please check your LRN or contact your teacher.' });
+    const student = await get('SELECT * FROM students WHERE student_id = ?', [student_id.trim()]);
+    if (!student) return res.status(404).json({ error: 'No enrolled student found with that Student ID. Please check your ID or contact your teacher.' });
     if (await get('SELECT id FROM student_accounts WHERE student_id = ?', [student.id])) return res.status(409).json({ error: 'An account already exists for this student. Please log in instead.' });
     if (await get('SELECT id FROM student_accounts WHERE username = ?', [username])) return res.status(409).json({ error: 'That username is already taken. Please choose another.' });
     const hash = bcrypt.hashSync(password, 10);
@@ -152,17 +152,17 @@ router.post('/student/self-register', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/student/lookup-lrn', async (req, res) => {
+router.get('/student/lookup-id', async (req, res) => {
   try {
-    const { lrn } = req.query;
-    if (!lrn) return res.status(400).json({ error: 'LRN is required' });
+    const { student_id } = req.query;
+    if (!student_id) return res.status(400).json({ error: 'Student ID is required' });
     const student = await get(`
       SELECT s.name, s.student_id, s.grade_level, s.section, s.student_code,
              c.name as class_name,
              (SELECT COUNT(*) FROM student_accounts sa WHERE sa.student_id = s.id) as has_account
-      FROM students s JOIN classes c ON s.class_id = c.id WHERE s.lrn = ?
-    `, [lrn.trim()]);
-    if (!student) return res.status(404).json({ error: 'No student found with that LRN.' });
+      FROM students s JOIN classes c ON s.class_id = c.id WHERE s.student_id = ?
+    `, [student_id.trim()]);
+    if (!student) return res.status(404).json({ error: 'No student found with that Student ID.' });
     res.json({ name: student.name, student_id: student.student_id, grade_level: student.grade_level, section: student.section, student_code: student.student_code, class_name: student.class_name, has_account: !!student.has_account });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

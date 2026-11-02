@@ -257,9 +257,9 @@ export default function StudentsPage() {
                     required placeholder="Juan dela Cruz" autoFocus />
                 </div>
                 <div className="form-group">
-                  <label>LRN (Learner Reference No.) *</label>
+                  <label>LRN (Learner Reference No.)</label>
                   <input value={form.lrn} onChange={e => setForm({...form, lrn: e.target.value})}
-                    required placeholder="123456789012" maxLength={12} />
+                    placeholder="123456789012" maxLength={12} />
                 </div>
                 <div className="form-group">
                   <label>Student ID</label>

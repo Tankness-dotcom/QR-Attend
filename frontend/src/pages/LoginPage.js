@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { teacherLogin, studentLogin, lookupStudentByLRN, studentSelfRegister } from '../api';
+import { teacherLogin, studentLogin, lookupStudentById, studentSelfRegister } from '../api';
 import { useAuth } from '../context/AuthContext';
 
 /* ══════════════════════════════════════
@@ -145,21 +145,21 @@ function LoginScreen({ onCreateAccount }) {
 }
 
 /* ══════════════════════════════════════
-   SCREEN 2 — STEP 1: Verify LRN
+   SCREEN 2 — STEP 1: Verify Student ID
 ══════════════════════════════════════ */
 function VerifyLRNScreen({ onBack, onVerified }) {
-  const [lrn, setLrn]         = useState('');
-  const [error, setError]     = useState('');
-  const [loading, setLoading] = useState(false);
+  const [studentId, setStudentId] = useState('');
+  const [error, setError]         = useState('');
+  const [loading, setLoading]     = useState(false);
 
   async function handleLookup(e) {
     e.preventDefault(); setError(''); setLoading(true);
     try {
-      const data = await lookupStudentByLRN(lrn.trim());
+      const data = await lookupStudentById(studentId.trim());
       if (data.has_account) {
         setError('This student already has an account. Please log in instead.');
       } else {
-        onVerified(lrn.trim(), data);
+        onVerified(studentId.trim(), data);
       }
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
@@ -178,29 +178,32 @@ function VerifyLRNScreen({ onBack, onVerified }) {
       </div>
 
       <div style={{ width: '100%', background: 'rgba(255,255,255,.6)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.25rem', fontSize: '.85rem', color: '#3e6f5c' }}>
-        <div style={{ fontWeight: 700, marginBottom: '.4rem' }}>📋 Step 1 of 2 — Verify your LRN</div>
-        <div style={{ color: '#5a8070' }}>Enter your Learner Reference Number (LRN) to confirm you are enrolled. Your teacher must have added you first.</div>
+        <div style={{ fontWeight: 700, marginBottom: '.4rem' }}>🪪 Step 1 of 2 — Verify your Student ID</div>
+        <div style={{ color: '#5a8070' }}>Enter your Student ID to confirm you are enrolled. Your teacher must have added you first.</div>
       </div>
 
       <ErrorBox msg={error} />
 
       <form onSubmit={handleLookup} style={{ width: '100%' }}>
         <div style={inputWrap}>
-          <span style={iconStyle}>📋</span>
+          <span style={iconStyle}>🪪</span>
           <input
-            type="text" inputMode="numeric" placeholder="Enter your 12-digit LRN"
-            value={lrn} onChange={e => setLrn(e.target.value)}
-            required maxLength={12} autoFocus style={inputStyle}
+            type="text"
+            placeholder="Enter your Student ID"
+            value={studentId}
+            onChange={e => setStudentId(e.target.value)}
+            required
+            autoFocus
+            style={inputStyle}
           />
         </div>
-        <button type="submit" disabled={loading || lrn.length < 6}
-          style={{ ...btnGreen, opacity: (loading || lrn.length < 6) ? .65 : 1, cursor: (loading || lrn.length < 6) ? 'not-allowed' : 'pointer' }}>
-          {loading ? 'Looking up…' : 'Verify LRN →'}
+        <button type="submit" disabled={loading || studentId.length < 1}
+          style={{ ...btnGreen, opacity: (loading || studentId.length < 1) ? .65 : 1, cursor: (loading || studentId.length < 1) ? 'not-allowed' : 'pointer' }}>
+          {loading ? 'Looking up…' : 'Verify Student ID →'}
         </button>
       </form>
 
-      <button type="button" onClick={onBack}
-        style={{ ...btnOutline, marginTop: '.75rem' }}>
+      <button type="button" onClick={onBack} style={{ ...btnOutline, marginTop: '.75rem' }}>
         ← Back to Login
       </button>
     </PageShell>
@@ -210,8 +213,7 @@ function VerifyLRNScreen({ onBack, onVerified }) {
 /* ══════════════════════════════════════
    SCREEN 3 — STEP 2: Set Username & Password
 ══════════════════════════════════════ */
-function SetCredentialsScreen({ lrn, studentInfo, onBack, onSuccess }) {
-  const [username, setUsername] = useState('');
+function SetCredentialsScreen({ lrn, studentInfo, onBack, onSuccess }) {  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm]   = useState('');
   const [error, setError]       = useState('');
@@ -316,8 +318,8 @@ function SuccessScreen({ username, onLogin }) {
    ROOT — controls which screen is shown
 ══════════════════════════════════════ */
 export default function LoginPage() {
-  const [screen, setScreen]         = useState('login');   // 'login' | 'verify' | 'credentials' | 'success'
-  const [verifiedLRN, setLRN]       = useState('');
+  const [screen, setScreen]           = useState('login');
+  const [verifiedId, setVerifiedId]   = useState('');
   const [studentInfo, setStudentInfo] = useState(null);
   const [createdUsername, setCreated] = useState('');
 
@@ -325,7 +327,7 @@ export default function LoginPage() {
     return (
       <VerifyLRNScreen
         onBack={() => setScreen('login')}
-        onVerified={(lrn, info) => { setLRN(lrn); setStudentInfo(info); setScreen('credentials'); }}
+        onVerified={(id, info) => { setVerifiedId(id); setStudentInfo(info); setScreen('credentials'); }}
       />
     );
   }
@@ -333,7 +335,7 @@ export default function LoginPage() {
   if (screen === 'credentials') {
     return (
       <SetCredentialsScreen
-        lrn={verifiedLRN}
+        lrn={verifiedId}
         studentInfo={studentInfo}
         onBack={() => setScreen('verify')}
         onSuccess={(uname) => { setCreated(uname); setScreen('success'); }}
