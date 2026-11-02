@@ -16,71 +16,87 @@ function NavAvatar({ user, size = 32 }) {
       fontSize: Math.round(size * 0.36), fontWeight: 700, color: '#fff',
     }}>
       {user?.photo
-        ? <img src={user.photo} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ? <img src={user.photo} alt={user.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : initials}
     </div>
   );
 }
 
-/* ── inline styles for hamburger bars ── */
-const barBase = { width: 18, height: 2, background: '#fff', borderRadius: 2, display: 'block', transition: 'transform .2s, opacity .2s' };
+const barBase = {
+  width: 18, height: 2, background: '#fff',
+  borderRadius: 2, display: 'block',
+  transition: 'transform .2s, opacity .2s',
+};
 
 export default function Navbar() {
   const { user, logout, isTeacher, isStudent, isAdmin } = useAuth();
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+  const navigate  = useNavigate();
+  const [open, setOpen]       = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
-  const menuRef = useRef(null);
+  const dropdownRef = useRef(null);
 
-  /* track screen width */
+  /* track viewport width */
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 640);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  /* close on outside click */
+  /* close when clicking OUTSIDE the dropdown — mouse only, no touch */
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpen(false);
+      }
     };
+    // mousedown is enough — do NOT listen to touchstart here
+    // because touchstart fires before touchend/click on the menu items
     document.addEventListener('mousedown', handler);
-    document.addEventListener('touchstart', handler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('touchstart', handler);
-    };
+    return () => document.removeEventListener('mousedown', handler);
   }, [open]);
-
-  function go(path) { setOpen(false); navigate(path); }
 
   if (!user) return null;
 
   const profilePath = isStudent ? '/student/portal' : '/profile';
 
   const links = isTeacher ? [
-    { to: '/dashboard', label: 'Dashboard' },
-    { to: '/scanner',   label: '📷 Scan'   },
-    { to: '/students',  label: 'Students'  },
-    ...(isAdmin ? [{ to: '/teachers', label: 'Teachers' }] : []),
+    { to: '/dashboard', label: '🏠 Dashboard' },
+    { to: '/scanner',   label: '📷 Scan'      },
+    { to: '/students',  label: '👨‍🎓 Students' },
+    ...(isAdmin ? [{ to: '/teachers', label: '👨‍🏫 Teachers' }] : []),
   ] : [
-    { to: '/student/portal', label: 'My Attendance' },
+    { to: '/student/portal', label: '📋 My Attendance' },
   ];
 
-  /* ── shared dropdown item style ── */
-  const dropItem = {
+  /* Navigate and close — used by both click and touch */
+  function go(path) {
+    setOpen(false);
+    navigate(path);
+  }
+
+  /* Touch handler for dropdown items: prevent ghost click, navigate immediately */
+  function makeTouchHandler(path) {
+    return (e) => {
+      e.preventDefault();   // stop the 300ms ghost click
+      e.stopPropagation();  // stop document mousedown from closing first
+      go(path);
+    };
+  }
+
+  const dropItemStyle = {
     display: 'block', width: '100%', textAlign: 'left',
-    padding: '.85rem 1.1rem', background: 'none', border: 'none',
-    color: '#fff', fontSize: '.95rem', fontWeight: 600,
-    fontFamily: 'Inter,sans-serif', cursor: 'pointer',
-    borderRadius: '8px', transition: 'background .12s',
+    padding: '14px 18px',
+    background: 'none', border: 'none',
+    color: '#fff', fontSize: '1rem', fontWeight: 600,
+    fontFamily: 'Inter, sans-serif', cursor: 'pointer',
+    borderRadius: '8px', WebkitTapHighlightColor: 'transparent',
   };
 
   return (
     <>
-      <nav className="navbar" ref={menuRef}>
-
+      <nav className="navbar">
         {/* Brand */}
         <div
           className="navbar-brand"
@@ -96,7 +112,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* ── DESKTOP nav links ── */}
+        {/* Desktop links */}
         {!isMobile && (
           <div className="navbar-links">
             {links.map(l => (
@@ -104,13 +120,13 @@ export default function Navbar() {
             ))}
             <div
               onClick={() => go(profilePath)}
-              style={{ display: 'flex', alignItems: 'center', gap: '.4rem', cursor: 'pointer', marginLeft: '.25rem' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '.4rem',
+                cursor: 'pointer', marginLeft: '.25rem' }}
             >
               <NavAvatar user={user} size={30} />
-              <span
-                className="navbar-user"
-                style={{ maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              >
+              <span className="navbar-user"
+                style={{ maxWidth: '110px', overflow: 'hidden',
+                  textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user.name}
                 {isAdmin   && <span style={{ marginLeft: '.3rem', fontSize: '.6rem', background: 'rgba(255,255,255,.2)', padding: '.05rem .35rem', borderRadius: '4px' }}>ADMIN</span>}
                 {isStudent && <span style={{ marginLeft: '.3rem', fontSize: '.6rem', background: 'rgba(255,255,255,.2)', padding: '.05rem .35rem', borderRadius: '4px' }}>STUDENT</span>}
@@ -118,7 +134,8 @@ export default function Navbar() {
             </div>
             <button
               className="btn btn-sm"
-              style={{ background: 'rgba(255,255,255,.18)', color: '#fff', border: '1px solid rgba(255,255,255,.3)', marginLeft: '.25rem' }}
+              style={{ background: 'rgba(255,255,255,.18)', color: '#fff',
+                border: '1px solid rgba(255,255,255,.3)', marginLeft: '.25rem' }}
               onClick={() => { logout(); navigate('/login'); }}
             >
               Logout
@@ -126,7 +143,7 @@ export default function Navbar() {
           </div>
         )}
 
-        {/* ── MOBILE: avatar + hamburger ── */}
+        {/* Mobile: avatar + hamburger */}
         {isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '.45rem' }}>
             <div onClick={() => go(profilePath)} style={{ cursor: 'pointer' }}>
@@ -136,40 +153,45 @@ export default function Navbar() {
               onClick={() => setOpen(o => !o)}
               aria-label={open ? 'Close menu' : 'Open menu'}
               style={{
-                background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.3)',
-                borderRadius: '7px', width: 38, height: 38, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: 'pointer', padding: 0,
+                background: 'rgba(255,255,255,.18)',
+                border: '1px solid rgba(255,255,255,.3)',
+                borderRadius: '7px', width: 38, height: 38,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                gap: '5px', cursor: 'pointer', padding: 0,
+                WebkitTapHighlightColor: 'transparent',
               }}
             >
-              <span style={{ ...barBase, transform: open ? 'rotate(45deg) translate(0, 7px)' : 'none' }} />
+              <span style={{ ...barBase, transform: open ? 'rotate(45deg) translate(0,7px)' : 'none' }} />
               <span style={{ ...barBase, opacity: open ? 0 : 1 }} />
-              <span style={{ ...barBase, transform: open ? 'rotate(-45deg) translate(0, -7px)' : 'none' }} />
+              <span style={{ ...barBase, transform: open ? 'rotate(-45deg) translate(0,-7px)' : 'none' }} />
             </button>
           </div>
         )}
       </nav>
 
-      {/* ── MOBILE dropdown — rendered outside nav so no ref conflict ── */}
+      {/* Mobile dropdown — separate from nav so ref/click zones don't overlap */}
       {isMobile && open && (
-        <div style={{
-          position: 'fixed',
-          top: 52,
-          left: 0,
-          right: 0,
-          zIndex: 200,
-          background: '#3e6f5c',
-          boxShadow: '0 8px 24px rgba(0,0,0,.3)',
-          padding: '.5rem .5rem .75rem',
-        }}>
+        <div
+          ref={dropdownRef}
+          style={{
+            position: 'fixed', top: 52, left: 0, right: 0,
+            zIndex: 200,
+            background: 'linear-gradient(180deg, #3e6f5c 0%, #2e5244 100%)',
+            boxShadow: '0 8px 24px rgba(0,0,0,.35)',
+            padding: '.5rem .5rem .75rem',
+          }}
+        >
           {links.map(l => (
             <button
               key={l.to}
+              /* onClick works on desktop/mouse; onTouchEnd works on mobile */
               onClick={() => go(l.to)}
-              style={dropItem}
-              onTouchStart={e => e.currentTarget.style.background = 'rgba(255,255,255,.12)'}
-              onTouchEnd={e  => e.currentTarget.style.background = 'none'}
+              onTouchEnd={makeTouchHandler(l.to)}
+              style={dropItemStyle}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.12)'}
               onMouseLeave={e => e.currentTarget.style.background = 'none'}
+              onTouchStart={e => e.currentTarget.style.background = 'rgba(255,255,255,.12)'}
             >
               {l.label}
             </button>
@@ -177,14 +199,14 @@ export default function Navbar() {
 
           <div style={{ height: '1px', background: 'rgba(255,255,255,.18)', margin: '.4rem 0' }} />
 
-          {/* Profile row */}
+          {/* Profile */}
           <button
             onClick={() => go(profilePath)}
-            style={{ ...dropItem, display: 'flex', alignItems: 'center', gap: '.65rem' }}
-            onTouchStart={e => e.currentTarget.style.background = 'rgba(255,255,255,.12)'}
-            onTouchEnd={e  => e.currentTarget.style.background = 'none'}
+            onTouchEnd={makeTouchHandler(profilePath)}
+            style={{ ...dropItemStyle, display: 'flex', alignItems: 'center', gap: '.65rem' }}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.12)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            onTouchStart={e => e.currentTarget.style.background = 'rgba(255,255,255,.12)'}
           >
             <NavAvatar user={user} size={30} />
             <span>{user.name}</span>
@@ -195,7 +217,8 @@ export default function Navbar() {
           {/* Logout */}
           <button
             onClick={() => { setOpen(false); logout(); navigate('/login'); }}
-            style={{ ...dropItem, background: 'rgba(220,38,38,.18)', color: '#fca5a5', marginTop: '.25rem' }}
+            onTouchEnd={(e) => { e.preventDefault(); setOpen(false); logout(); navigate('/login'); }}
+            style={{ ...dropItemStyle, background: 'rgba(220,38,38,.2)', color: '#fca5a5', marginTop: '.25rem' }}
           >
             🚪 Logout
           </button>
