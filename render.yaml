@@ -10,3 +10,7 @@ services:
         value: production
       - key: JWT_SECRET
         generateValue: true
+      - key: TURSO_URL
+        sync: false   # set manually in Render dashboard
+      - key: TURSO_TOKEN
+        sync: false   # set manually in Render dashboard
