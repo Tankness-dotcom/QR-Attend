@@ -23,8 +23,14 @@ async function initDb() {
 
   if (url && token) {
     // ── Production: Turso remote database ──
+    // Validate URL format before connecting
+    if (!url.startsWith('libsql://') && !url.startsWith('https://')) {
+      throw new Error(`TURSO_URL is invalid. Expected format: libsql://your-db.turso.io  Got: "${url}"`);
+    }
     client = createClient({ url, authToken: token });
-    console.log('🌐 Connected to Turso remote database');
+    console.log('🌐 Connected to Turso remote database:', url);
+  } else if (url && !token) {
+    throw new Error('TURSO_TOKEN is missing. Set it in your Render environment variables.');
   } else {
     // ── Development: local SQLite file ──
     const path = require('path');

@@ -31,10 +31,19 @@ initDb()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🗄️  TURSO_URL set: ${!!process.env.TURSO_URL}`);
     });
   })
   .catch(err => {
-    console.error('Failed to initialize database:', err);
+    console.error('');
+    console.error('❌ STARTUP FAILED:', err.message);
+    console.error('');
+    if (!process.env.TURSO_URL) {
+      console.error('👉 TURSO_URL is not set. Go to your Render dashboard →');
+      console.error('   Environment tab → add TURSO_URL and TURSO_TOKEN');
+    }
+    console.error('');
     process.exit(1);
   });
 
