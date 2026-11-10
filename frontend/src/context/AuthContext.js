@@ -11,13 +11,33 @@ export function AuthProvider({ children }) {
     const token       = localStorage.getItem('token');
     const accountType = localStorage.getItem('accountType');
     if (!token) { setLoading(false); return; }
+
+    // If we have a cached user object (set by offline login), use it directly
+    // and skip the network call which would fail offline
+    const cachedUser = localStorage.getItem('cachedUser');
+    if (!navigator.onLine && cachedUser) {
+      try {
+        setUser(JSON.parse(cachedUser));
+        setLoading(false);
+        return;
+      } catch {}
+    }
+
     try {
       const fn   = accountType === 'student' ? getStudentMe : getTeacherMe;
       const data = await fn();
       setUser(data.user);
+      // Keep cachedUser up to date for offline use
+      localStorage.setItem('cachedUser', JSON.stringify(data.user));
     } catch {
+      // If offline and we have a cached user, use it
+      if (cachedUser) {
+        try { setUser(JSON.parse(cachedUser)); setLoading(false); return; }
+        catch {}
+      }
       localStorage.removeItem('token');
       localStorage.removeItem('accountType');
+      localStorage.removeItem('cachedUser');
       setUser(null);
     } finally {
       setLoading(false);
@@ -33,18 +53,21 @@ export function AuthProvider({ children }) {
     try {
       const data = await fn();
       setUser(data.user);
+      localStorage.setItem('cachedUser', JSON.stringify(data.user));
     } catch {}
   }, []);
 
   const login = (token, userData) => {
     localStorage.setItem('token', token);
     localStorage.setItem('accountType', userData.accountType);
+    localStorage.setItem('cachedUser', JSON.stringify(userData));
     setUser(userData);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('accountType');
+    localStorage.removeItem('cachedUser');
     setUser(null);
   };
 

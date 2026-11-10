@@ -1,4 +1,5 @@
 import { offlineGet, offlineScanQR } from './offline/offlineApi';
+import { offlineTeacherLogin, offlineStudentLogin } from './offline/offlineAuth';
 
 const BASE = '/api';
 
@@ -24,18 +25,9 @@ async function request(method, path, body) {
   return data;
 }
 
-/* ── Auth — always require network (security: never cache passwords/tokens) ── */
-export const teacherLogin = (email, password) =>
-  fetch(`${BASE}/auth/teacher/login`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; });
-
-export const studentLogin = (username, password) =>
-  fetch(`${BASE}/auth/student/login`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; });
+/* ── Auth — offline-aware login, always-online for everything else ── */
+export const teacherLogin = (email, password)    => offlineTeacherLogin(email, password);
+export const studentLogin = (username, password) => offlineStudentLogin(username, password);
 
 export const getTeacherMe = () => request('GET', '/auth/teacher/me');
 export const getStudentMe = () => request('GET', '/auth/student/me');
