@@ -156,7 +156,7 @@ export default function ScannerPage() {
               id:         Date.now(),
               name:       data.student?.name || 'Unknown',
               student_id: data.student?.student_id || '',
-              time:       new Date().toLocaleTimeString(),
+              time:       new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'Asia/Manila' }),
               success:    data.success,
               already:    data.alreadyMarked,
               message:    data.message || (data.error ? `Error: ${data.error}` : 'Unknown result'),
@@ -165,7 +165,7 @@ export default function ScannerPage() {
             setHistory(prev => [entry, ...prev.slice(0, 49)]);
           } catch (err) {
             if (mountedRef.current) {
-              setResult({ id: Date.now(), name: '', student_id: '', time: new Date().toLocaleTimeString(), success: false, already: false, message: `Network error: ${err.message}` });
+              setResult({ id: Date.now(), name: '', student_id: '', time: new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'Asia/Manila' }), success: false, already: false, message: `Network error: ${err.message}` });
             }
           } finally {
             // Allow next scan after 2.5 seconds

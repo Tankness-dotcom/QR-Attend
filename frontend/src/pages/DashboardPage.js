@@ -20,9 +20,15 @@ function useLiveClock() {
 }
 
 /* ── Helpers ── */
+const PH_LOCALE = 'en-PH';
+const PH_TZ     = 'Asia/Manila';
+
 function fmtTime(isoStr) {
   if (!isoStr) return '—';
-  return new Date(isoStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+  return new Date(isoStr).toLocaleTimeString(PH_LOCALE, {
+    hour: 'numeric', minute: '2-digit', second: '2-digit',
+    hour12: true, timeZone: PH_TZ,
+  });
 }
 
 function StatusBadge({ status }) {
@@ -198,8 +204,8 @@ export default function DashboardPage() {
   const lateCount    = summary.reduce((acc, s) => acc + (s.days_late || 0), 0);
 
   /* ── formatted date/time ── */
-  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+  const dateStr = now.toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Manila' });
+  const timeStr = now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'Asia/Manila' });
 
   /* ═══════════════════ RENDER ═══════════════════ */
   return (

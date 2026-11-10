@@ -7,6 +7,11 @@ const router = express.Router();
 /* helper */
 const isAdmin = (req) => req.teacher?.role === 'admin';
 
+// Returns today's date string (YYYY-MM-DD) in Philippine Time
+function todayPHT() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+}
+
 // Ownership check for a class — admins can access any class
 const ownedClass = async (req, classId) => {
   if (isAdmin(req)) return await get('SELECT id, name FROM classes WHERE id = ?', [classId]);
@@ -25,7 +30,7 @@ router.post('/scan', async (req, res) => {
     if (String(student.class_id) !== String(class_id))
       return res.status(400).json({ error: 'Student is not enrolled in this class' });
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayPHT();
     const existing = await get(
       'SELECT id, scanned_at FROM attendance WHERE student_id = ? AND class_id = ? AND date = ?',
       [student.id, class_id, today]
@@ -40,8 +45,11 @@ router.post('/scan', async (req, res) => {
       });
     }
 
-    await insert('INSERT INTO attendance (student_id, class_id, date) VALUES (?, ?, ?)',
-      [student.id, class_id, today]);
+    // Store scanned_at in Philippine Time (UTC+8)
+    await insert(
+      "INSERT INTO attendance (student_id, class_id, date, scanned_at) VALUES (?, ?, ?, datetime('now', '+8 hours'))",
+      [student.id, class_id, today]
+    );
     const newRec = await get(
       'SELECT scanned_at FROM attendance WHERE student_id = ? AND class_id = ? AND date = ?',
       [student.id, class_id, today]
@@ -127,7 +135,7 @@ router.get('/today', async (req, res) => {
     const cls = await ownedClass(req, class_id);
     if (!cls) return res.status(403).json({ error: 'Access denied' });
 
-    const today    = new Date().toISOString().split('T')[0];
+    const today    = todayPHT();
     const students = await all(
       'SELECT id, name, student_id FROM students WHERE class_id = ? ORDER BY name', [class_id]
     );
@@ -194,8 +202,9 @@ router.post('/manual', async (req, res) => {
     if (existing) {
       await run('UPDATE attendance SET status = ? WHERE id = ?', [finalStatus, existing.id]);
     } else {
+      // Store scanned_at in Philippine Time (UTC+8)
       await insert(
-        'INSERT INTO attendance (student_id, class_id, date, status) VALUES (?, ?, ?, ?)',
+        "INSERT INTO attendance (student_id, class_id, date, status, scanned_at) VALUES (?, ?, ?, ?, datetime('now', '+8 hours'))",
         [student_id, class_id, date, finalStatus]
       );
     }

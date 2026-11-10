@@ -247,7 +247,7 @@ export default function StudentPortalPage() {
                       <td style={{ fontWeight: 600 }}>{a.date}</td>
                       <td className="hide-mobile text-muted">{a.class_name}</td>
                       <td className="text-muted" style={{ fontSize: '.85rem' }}>
-                        {new Date(a.scanned_at).toLocaleTimeString()}
+                        {new Date(a.scanned_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'Asia/Manila' })}
                       </td>
                       <td>
                         <span className={`badge ${a.status === 'present' ? 'badge-green' : 'badge-red'}`}>
