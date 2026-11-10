@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { getClasses, scanQR } from '../api';
+import { prewarmClassCache } from '../offline/offlineApi';
+import { useOnlineStatus } from '../offline/useOnlineStatus';
 
 const SCANNER_ID = 'qr-reader-viewport';
 
@@ -22,6 +24,7 @@ const SCAN_CONFIG = {
 };
 
 export default function ScannerPage() {
+  const { online, pendingCount } = useOnlineStatus();
   const [classes, setClasses]         = useState([]);
   const [classId, setClassId]         = useState('');
   const [scanning, setScanning]       = useState(false);
@@ -29,9 +32,9 @@ export default function ScannerPage() {
   const [history, setHistory]         = useState([]);
   const [error, setError]             = useState('');
   const [cameraErr, setCameraErr]     = useState('');
-  const [cameras, setCameras]         = useState([]);    // [{id, label}]
-  const [activeCamIdx, setActiveCamIdx] = useState(0);  // index into cameras[]
-  const [permState, setPermState]     = useState('unknown'); // 'unknown'|'granted'|'denied'
+  const [cameras, setCameras]         = useState([]);
+  const [activeCamIdx, setActiveCamIdx] = useState(0);
+  const [permState, setPermState]     = useState('unknown');
   const [starting, setStarting]       = useState(false);
 
   const scannerRef    = useRef(null);
@@ -43,7 +46,11 @@ export default function ScannerPage() {
     getClasses().then(data => {
       if (!mountedRef.current) return;
       setClasses(data);
-      if (data.length === 1) setClassId(String(data[0].id));
+      if (data.length === 1) {
+        const id = String(data[0].id);
+        setClassId(id);
+        prewarmClassCache(id).catch(() => {});
+      }
     }).catch(() => {});
     return () => { mountedRef.current = false; };
   }, []);
@@ -210,16 +217,35 @@ export default function ScannerPage() {
   /* ── Result banner ── */
   function ResultBanner({ entry }) {
     if (!entry) return null;
-    const bg    = !entry.success ? '#fee2e2' : entry.already ? '#fef9c3' : '#dcfce7';
-    const color = !entry.success ? '#991b1b' : entry.already ? '#854d0e' : '#3e6f5c';
-    const border= !entry.success ? '#fca5a5' : entry.already ? '#fde68a' : '#c8e6c9';
-    const icon  = !entry.success ? '❌'      : entry.already ? '⚠️'      : '✅';
+    // offline queued scan gets a distinct amber style
+    const isOffline = entry._source === 'offline' || entry.offline;
+    const bg    = isOffline ? '#1f2937'
+      : !entry.success ? '#fee2e2'
+      : entry.already  ? '#fef9c3'
+      : '#dcfce7';
+    const color = isOffline ? '#f9fafb'
+      : !entry.success ? '#991b1b'
+      : entry.already  ? '#854d0e'
+      : '#3e6f5c';
+    const border = isOffline ? '#374151'
+      : !entry.success ? '#fca5a5'
+      : entry.already  ? '#fde68a'
+      : '#c8e6c9';
+    const icon = isOffline ? '📵'
+      : !entry.success ? '❌'
+      : entry.already  ? '⚠️'
+      : '✅';
     return (
       <div style={{ background: bg, color, borderRadius: '12px', padding: '1.25rem', textAlign: 'center', marginTop: '1rem', border: `1.5px solid ${border}`, transition: 'all .25s' }}>
         <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>{icon}</div>
-        <div style={{ fontWeight: 700, fontSize: '1.15rem', marginTop: '.5rem' }}>{entry.message}</div>
+        <div style={{ fontWeight: 700, fontSize: '1.05rem', marginTop: '.5rem' }}>{entry.message}</div>
         {entry.student_id && <div style={{ opacity: .75, marginTop: '.2rem', fontSize: '.9rem' }}>ID: {entry.student_id}</div>}
         <div style={{ opacity: .6, fontSize: '.8rem', marginTop: '.2rem' }}>{entry.time}</div>
+        {isOffline && (
+          <div style={{ marginTop: '.5rem', fontSize: '.78rem', opacity: .8, background: 'rgba(255,255,255,.1)', borderRadius: '6px', padding: '.35rem .6rem' }}>
+            Will sync automatically when back online
+          </div>
+        )}
       </div>
     );
   }
@@ -231,13 +257,27 @@ export default function ScannerPage() {
     <div className="page" style={{ maxWidth: '640px' }}>
       <div className="page-header">
         <h1 className="page-title">📷 QR Scanner</h1>
-        <div style={{ display: 'flex', gap: '.5rem' }}>
+        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          {/* Online/offline pill */}
+          <span style={{
+            fontSize: '.72rem', fontWeight: 700, padding: '.2rem .6rem',
+            borderRadius: '999px',
+            background: online ? '#dcfce7' : '#1f2937',
+            color:      online ? '#166534' : '#f9fafb',
+          }}>
+            {online ? '🟢 Online' : '📵 Offline'}
+          </span>
+          {pendingCount > 0 && (
+            <span style={{ fontSize: '.72rem', fontWeight: 700, padding: '.2rem .6rem', borderRadius: '999px', background: '#ffedd5', color: '#9a3412' }}>
+              {pendingCount} pending
+            </span>
+          )}
           {cameras.length > 1 && (
-            <button className="btn btn-outline" onClick={switchCamera} title="Switch camera">
+            <button className="btn btn-outline btn-sm" onClick={switchCamera} title="Switch camera">
               {isBack ? '🤳 Front' : '📷 Back'}
             </button>
           )}
-          {scanning && <button className="btn btn-danger" onClick={stopScanner}>⏹ Stop</button>}
+          {scanning && <button className="btn btn-danger btn-sm" onClick={stopScanner}>⏹ Stop</button>}
         </div>
       </div>
 
@@ -247,7 +287,12 @@ export default function ScannerPage() {
           <label>Class</label>
           <select
             value={classId}
-            onChange={e => { setClassId(e.target.value); if (scanning) stopScanner(); }}
+            onChange={e => {
+              const id = e.target.value;
+              setClassId(id);
+              if (scanning) stopScanner();
+              if (id) prewarmClassCache(id).catch(() => {});
+            }}
             disabled={scanning}
           >
             <option value="">— Select a class —</option>

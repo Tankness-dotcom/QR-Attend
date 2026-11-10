@@ -1,83 +1,110 @@
-/* ═══════════════════════════════════════════════
-   QR-Attend Service Worker
-   Caches the app shell for fast loads and offline
-═══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+   QR-Attend Service Worker  v2 — Offline-first
+   ───────────────────────────────────────────────────────
+   Strategy:
+   • App shell (HTML/JS/CSS/icons) → Cache-first
+   • API GETs                      → Network-first, IndexedDB fallback
+                                      (IndexedDB fallback handled in app code)
+   • API POSTs                     → Network only
+                                      (offline POSTs queued in app code)
+════════════════════════════════════════════════════════ */
 
-const CACHE_NAME  = 'qrattend-v1';
+const CACHE_NAME  = 'qrattend-v2';
 const API_PREFIX  = '/api/';
 
-// App shell assets to cache on install
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/qrattend-logo.png',
+  '/apple-touch-icon.png',
+  '/favicon-32x32.png',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
 ];
 
-/* ── Install: cache the shell ── */
+/* ── Install: pre-cache app shell ── */
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL_ASSETS))
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(SHELL_ASSETS))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 /* ── Activate: clean up old caches ── */
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-/* ── Fetch strategy ──
-   - API calls:        Network only (always fresh data)
-   - JS/CSS bundles:   Cache first, then network (versioned filenames)
-   - Everything else:  Network first, fall back to cache, then /index.html
-*/
+/* ── Fetch ── */
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and non-http(s)
-  if (request.method !== 'GET') return;
+  // Ignore non-http(s) and cross-origin
   if (!url.protocol.startsWith('http')) return;
+  if (url.origin !== self.location.origin) return;
 
-  // API calls — always network, never cache
-  if (url.pathname.startsWith(API_PREFIX)) {
+  const isAPI    = url.pathname.startsWith(API_PREFIX);
+  const isStatic = url.pathname.startsWith('/static/');
+  const isGET    = request.method === 'GET';
+
+  /* ── 1. Non-GET API calls (POST/DELETE/PUT) → network only ── */
+  if (isAPI && !isGET) {
     event.respondWith(fetch(request));
     return;
   }
 
-  // Static JS/CSS bundles (have content hash in filename) — cache first
-  if (url.pathname.startsWith('/static/')) {
+  /* ── 2. Static JS/CSS bundles → cache-first ── */
+  if (isStatic) {
     event.respondWith(
       caches.match(request).then(cached => {
         if (cached) return cached;
-        return fetch(request).then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-          return response;
+        return fetch(request).then(res => {
+          if (res.ok) caches.open(CACHE_NAME).then(c => c.put(request, res.clone()));
+          return res;
         });
       })
     );
     return;
   }
 
-  // Everything else — network first, fall back to cache, then index.html (SPA)
+  /* ── 3. API GETs → network first; on failure return offline JSON ── */
+  if (isAPI && isGET) {
+    event.respondWith(
+      fetch(request)
+        .then(res => {
+          // Let the app's IndexedDB layer handle caching
+          return res;
+        })
+        .catch(() => {
+          // Service worker level fallback — the app's offlineApi.js handles
+          // reading from IndexedDB, so we just need to let the fetch fail so
+          // offlineGet() catches it
+          return new Response(
+            JSON.stringify({ error: 'offline', _sw: true }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } }
+          );
+        })
+    );
+    return;
+  }
+
+  /* ── 4. Everything else (HTML nav) → network first, fall back to cached /index.html ── */
   event.respondWith(
     fetch(request)
-      .then(response => {
-        // Cache successful responses for the shell
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+      .then(res => {
+        if (res.ok) {
+          caches.open(CACHE_NAME).then(c => c.put(request, res.clone()));
         }
-        return response;
+        return res;
       })
       .catch(() =>
         caches.match(request).then(cached =>
@@ -87,7 +114,19 @@ self.addEventListener('fetch', event => {
   );
 });
 
-/* ── Push notifications (future use) ── */
+/* ── Background sync (fires when connectivity is restored) ── */
+self.addEventListener('sync', event => {
+  if (event.tag === 'sync-attendance') {
+    // Notify all open clients to trigger the sync queue
+    event.waitUntil(
+      self.clients.matchAll().then(clients => {
+        clients.forEach(client => client.postMessage({ type: 'SYNC_NOW' }));
+      })
+    );
+  }
+});
+
+/* ── Push notifications ── */
 self.addEventListener('push', event => {
   const data = event.data?.json() || { title: 'QR-Attend', body: 'New notification' };
   event.waitUntil(
